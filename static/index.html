@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PulseBoard - Tableau de bord urbain intelligent</title>
+  <title>PulseBoard - Dashboard Météo Intelligent</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -367,9 +367,37 @@
               0 0 20px rgba(99, 102, 241, 0.3),
               0 0 40px rgba(99, 102, 241, 0.2);
       }
+
+      /* Message d'erreur */
+      #error-message {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: rgba(239, 68, 68, 0.95);
+          color: white;
+          padding: 16px 24px;
+          border-radius: 12px;
+          font-weight: 600;
+          z-index: 1000;
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 8px 32px rgba(239, 68, 68, 0.3);
+          transform: translateX(400px);
+          transition: transform 0.3s ease;
+      }
+
+      #error-message.show {
+          transform: translateX(0);
+      }
   </style>
 </head>
 <body class="morphing-bg">
+  <!-- Message d'erreur -->
+  <div id="error-message" style="display: none;">
+      <i class="fas fa-exclamation-triangle mr-2"></i>
+      <span id="error-text">Une erreur est survenue</span>
+  </div>
+
   <!-- Header -->
   <header class="glass-header sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-6 lg:px-8">
@@ -377,11 +405,11 @@
               <div class="flex items-center space-x-6">
                   <div class="flex items-center space-x-4">
                       <div class="w-16 h-16 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl flex items-center justify-center shadow-xl neon-glow card-glow">
-                          <i class="fas fa-city text-white text-2xl icon-bounce"></i>
+                          <i class="fas fa-cloud-sun text-white text-2xl icon-bounce"></i>
                       </div>
                       <div>
                           <h1 class="text-3xl font-black gradient-text">PulseBoard</h1>
-                          <p class="text-sm text-gray-600 font-semibold tracking-wide">Urban Intelligence Platform</p>
+                          <p class="text-sm text-gray-600 font-semibold tracking-wide">Weather Intelligence Platform</p>
                       </div>
                   </div>
               </div>
@@ -389,7 +417,7 @@
               <div class="flex items-center space-x-8">
                   <div class="flex items-center space-x-4">
                       <div class="w-3 h-3 bg-green-500 rounded-full live-indicator"></div>
-                      <span class="text-sm font-semibold text-gray-700 hidden sm:block">Live Data</span>
+                      <span class="text-sm font-semibold text-gray-700 hidden sm:block">OpenWeatherMap</span>
                   </div>
                   
                   <div class="flex items-center space-x-3 bg-white/20 backdrop-blur-lg rounded-2xl px-6 py-3 border border-white/30">
@@ -413,15 +441,17 @@
               <div class="flex items-center justify-between">
                   <div>
                       <h2 class="section-title text-2xl mb-3">Sélection de la ville</h2>
-                      <p class="text-gray-600 text-lg">Choisissez votre zone urbaine d'analyse</p>
+                      <p class="text-gray-600 text-lg">Choisissez votre zone météorologique</p>
                   </div>
                   <div class="flex items-center space-x-6">
-                      <select id="citySelect" class="px-8 py-4 bg-white/90 backdrop-blur-lg border-2 border-white/30 rounded-2xl focus:ring-4 focus:ring-indigo-500/30 focus:border-indigo-500 font-semibold text-gray-900 min-w-[250px] transition-all duration-300 shadow-lg">
+                      <select id="city-select" class="px-8 py-4 bg-white/90 backdrop-blur-lg border-2 border-white/30 rounded-2xl focus:ring-4 focus:ring-indigo-500/30 focus:border-indigo-500 font-semibold text-gray-900 min-w-[250px] transition-all duration-300 shadow-lg">
                           <option value="paris">🗼 Paris</option>
                           <option value="lyon">🦁 Lyon</option>
-                          <option value="bordeaux">🍷 Bordeaux</option>
                           <option value="marseille">⛵ Marseille</option>
+                          <option value="bordeaux">🍷 Bordeaux</option>
                           <option value="lille">🏛️ Lille</option>
+                          <option value="toulouse">🌸 Toulouse</option>
+                          <option value="nice">🌴 Nice</option>
                       </select>
                   </div>
               </div>
@@ -562,7 +592,7 @@
                   <div class="flex items-center justify-between mb-10">
                       <div>
                           <h2 class="section-title text-3xl mb-2">Conditions Météorologiques</h2>
-                          <p class="text-gray-600 text-lg">Données en temps réel et prévisions</p>
+                          <p class="text-gray-600 text-lg">Données OpenWeatherMap en temps réel</p>
                       </div>
                       <div class="flex items-center space-x-3 bg-blue-50 px-6 py-3 rounded-2xl border border-blue-200">
                           <i class="fas fa-satellite text-blue-600 text-lg"></i>
@@ -572,13 +602,15 @@
                   
                   <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-10">
                       <div class="text-center">
-                          <div class="weather-icon mb-8" id="weatherIcon">⛅</div>
+                          <div id="weather-description" class="weather-icon mb-8">
+                              <img id="weather-icon-img" src="" alt="" style="width: 120px; height: 120px; margin: 0 auto;">
+                          </div>
                           <div class="space-y-4">
-                              <div class="data-point text-7xl" id="currentTemp">--°C</div>
+                              <div class="data-point text-7xl" id="current-temp">--°C</div>
                               <div class="text-xl text-gray-600">
-                                  Ressenti <span id="feelsLike" class="font-bold text-gray-800">--°C</span>
+                                  Ressenti <span id="feels-like" class="font-bold text-gray-800">--°C</span>
                               </div>
-                              <div class="text-base text-gray-500 font-medium" id="weatherDescription">
+                              <div class="text-base text-gray-500 font-medium" id="weather-desc-text">
                                   Chargement...
                               </div>
                           </div>
@@ -624,7 +656,7 @@
                           <h3 class="font-bold text-xl text-gray-800">Prévisions 24h</h3>
                           <div class="flex items-center space-x-3 text-sm text-gray-500 bg-white/50 px-4 py-2 rounded-xl">
                               <i class="fas fa-clock"></i>
-                              <span class="font-medium" id="weatherUpdateTime">Chargement...</span>
+                              <span class="font-medium" id="weather-update-time">Chargement...</span>
                           </div>
                       </div>
                       <div class="h-80">
@@ -640,7 +672,7 @@
                   <div class="flex items-center justify-between mb-10">
                       <div>
                           <h2 class="section-title text-3xl mb-2">Qualité de l'Air</h2>
-                          <p class="text-gray-600 text-lg">Indice AQI en temps réel</p>
+                          <p class="text-gray-600 text-lg">Indice AQI simulé</p>
                       </div>
                       <div class="ai-badge px-4 py-2 rounded-full text-white text-sm font-bold">
                           <i class="fas fa-brain mr-2"></i>
@@ -699,7 +731,7 @@
                       </div>
                   </div>
                   
-                  <div id="airAdvice" class="p-8 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-3xl">
+                  <div id="air-advice" class="p-8 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-3xl">
                       <div class="flex items-start space-x-4">
                           <div class="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center flex-shrink-0">
                               <i class="fas fa-info text-gray-600 text-xl"></i>
@@ -726,7 +758,7 @@
                       </button>
                   </div>
                   
-                  <div id="eventsList" class="space-y-6">
+                  <div id="forecast-list" class="space-y-6">
                       <div class="text-center py-8 text-gray-500">
                           <div class="loading-spinner mx-auto mb-4"></div>
                           <p>Chargement des événements...</p>
@@ -767,13 +799,13 @@
                       <div class="flex items-baseline space-x-4 mb-6">
                           <div class="data-point text-5xl" id="prediction">--</div>
                           <div class="text-2xl text-gray-600 font-semibold">AQI</div>
-                          <div id="predictionTrend" class="flex items-center text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
+                          <div id="prediction-trend" class="flex items-center text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-200">
                               <i class="fas fa-sync mr-2"></i>
                               <span class="font-bold">Analyse...</span>
                           </div>
                       </div>
                       
-                      <div id="predictionGrid" class="grid grid-cols-3 gap-6 text-center">
+                      <div id="prediction-grid" class="grid grid-cols-3 gap-6 text-center">
                           <div class="bg-white/50 p-4 rounded-2xl">
                               <div class="text-sm text-gray-500 mb-2 font-semibold">+2h</div>
                               <div class="data-point text-2xl">--</div>
@@ -795,7 +827,7 @@
                       </div>
                   </div>
                   
-                  <div id="aiRecommendation" class="p-8 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-3xl">
+                  <div id="ai-recommendation" class="p-8 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-3xl">
                       <div class="flex items-start space-x-4">
                           <div class="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center flex-shrink-0">
                               <i class="fas fa-lightbulb text-gray-600 text-xl"></i>
@@ -829,10 +861,10 @@
                   <div class="w-20 h-20 bg-gradient-to-br from-blue-400 via-cyan-500 to-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
                       <i class="fas fa-cloud-sun text-white text-3xl"></i>
                   </div>
-                  <div class="data-point text-4xl mb-3" id="modalWeatherScore">--</div>
+                  <div class="data-point text-4xl mb-3" id="modal-weather-score">--</div>
                   <div class="font-bold text-gray-700 mb-4 text-xl">Météo</div>
                   <div class="w-full bg-gray-200 rounded-full h-3">
-                      <div id="modalWeatherBar" class="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-1500" style="width: 0%"></div>
+                      <div id="modal-weather-bar" class="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-1500" style="width: 0%"></div>
                   </div>
               </div>
               
@@ -840,10 +872,10 @@
                   <div class="w-20 h-20 bg-gradient-to-br from-green-400 via-emerald-500 to-green-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
                       <i class="fas fa-wind text-white text-3xl"></i>
                   </div>
-                  <div class="data-point text-4xl mb-3" id="modalAirScore">--</div>
+                  <div class="data-point text-4xl mb-3" id="modal-air-score">--</div>
                   <div class="font-bold text-gray-700 mb-4 text-xl">Air</div>
                   <div class="w-full bg-gray-200 rounded-full h-3">
-                      <div id="modalAirBar" class="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-1500" style="width: 0%"></div>
+                      <div id="modal-air-bar" class="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-1500" style="width: 0%"></div>
                   </div>
               </div>
               
@@ -851,10 +883,10 @@
                   <div class="w-20 h-20 bg-gradient-to-br from-purple-400 via-pink-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
                       <i class="fas fa-calendar-alt text-white text-3xl"></i>
                   </div>
-                  <div class="data-point text-4xl mb-3" id="modalEventsScore">--</div>
+                  <div class="data-point text-4xl mb-3" id="modal-events-score">--</div>
                   <div class="font-bold text-gray-700 mb-4 text-xl">Événements</div>
                   <div class="w-full bg-gray-200 rounded-full h-3">
-                      <div id="modalEventsBar" class="bg-gradient-to-r from-purple-400 to-purple-600 h-3 rounded-full transition-all duration-1500" style="width: 0%"></div>
+                      <div id="modal-events-bar" class="bg-gradient-to-r from-purple-400 to-purple-600 h-3 rounded-full transition-all duration-1500" style="width: 0%"></div>
                   </div>
               </div>
           </div>
@@ -867,7 +899,7 @@
                   <div>
                       <div class="font-bold text-gray-800 mb-3 text-xl">Méthodologie de calcul</div>
                       <div class="text-gray-600 leading-relaxed text-lg">
-                          Le score urbain est calculé en combinant les données météorologiques, la qualité de l'air et la densité d'événements culturels. 
+                          Le score urbain est calculé en combinant les données météorologiques OpenWeatherMap, la qualité de l'air simulée et la densité d'événements culturels. 
                           Notre algorithme IA pondère ces facteurs selon leur impact sur la qualité de vie urbaine.
                       </div>
                   </div>
@@ -876,590 +908,7 @@
       </div>
   </div>
 
-  <script>
-      // Configuration API
-      const API_BASE_URL = window.location.origin;
-
-      // Variables globales pour les graphiques
-      let weatherChart, predictionChart;
-
-      // Fonction pour récupérer les données du dashboard
-      async function fetchDashboardData(city) {
-          try {
-              const response = await fetch(`${API_BASE_URL}/api/dashboard/${city}`);
-              if (!response.ok) {
-                  throw new Error(`HTTP error! status: ${response.status}`);
-              }
-              return await response.json();
-          } catch (error) {
-              console.error('Erreur API:', error);
-              return getFallbackData(city);
-          }
-      }
-
-      // Fonction de fallback avec données simulées
-      function getFallbackData(city) {
-          const fallbackData = {
-              paris: {
-                  weather: { 
-                      current: { 
-                          temp: 22, feels_like: 25, humidity: 65, wind_speed: 12, 
-                          pressure: 1013, visibility: 15, description: "Ensoleillé", icon: "01d"
-                      },
-                      forecast_24h: [
-                          { time: "2026-03-18 15:00:00", temp: 23, feels_like: 26, humidity: 63, icon: "01d" },
-                          { time: "2026-03-18 18:00:00", temp: 21, feels_like: 24, humidity: 67, icon: "02d" },
-                          { time: "2026-03-18 21:00:00", temp: 19, feels_like: 22, humidity: 70, icon: "02n" },
-                          { time: "2026-03-19 00:00:00", temp: 17, feels_like: 20, humidity: 73, icon: "01n" }
-                      ]
-                  },
-                  air: { 
-                      aqi: 45, pm25: 12, no2: 28, o3: 85, label: "Bon", color: "green",
-                      advice: "Parfait pour les activités outdoor" 
-                  },
-                  score: { 
-                      score: 78, label: "Excellent",
-                      breakdown: {
-                          weather: { score: 85, weight: 0.4 },
-                          air_quality: { score: 72, weight: 0.4 },
-                          events: { score: 76, weight: 0.2 }
-                      }
-                  },
-                  events: { 
-                      events: [
-                          { name: 'Festival Jazz de Paris', date: '2026-03-20T19:00:00', location: 'Place de la République', category: 'culture' },
-                          { name: 'Marché Bio Montmartre', date: '2026-03-21T09:00:00', location: 'Place du Tertre', category: 'marché' }
-                      ]
-                  },
-                  prediction: { 
-                      predicted_aqi_6h: 42, confidence: 87,
-                      forecast: [
-                          { hour: "+1h", aqi: 47 },
-                          { hour: "+2h", aqi: 45 },
-                          { hour: "+3h", aqi: 44 },
-                          { hour: "+4h", aqi: 43 },
-                          { hour: "+5h", aqi: 42 },
-                          { hour: "+6h", aqi: 42 }
-                      ]
-                  }
-              }
-          };
-          return fallbackData[city] || fallbackData.paris;
-      }
-
-      // Fonction principale de mise à jour du dashboard
-      async function updateDashboard(city) {
-          try {
-              const data = await fetchDashboardData(city);
-              
-              // Mise à jour des KPIs
-              updateKPIs(data);
-              
-              // Mise à jour des sections
-              updateWeatherSection(data.weather);
-              updateAirQualitySection(data.air);
-              updateScoreSection(data.score);
-              updateEventsSection(data.events);
-              updatePredictionSection(data.prediction);
-              
-              // Mise à jour des graphiques
-              updateCharts(data);
-              
-          } catch (error) {
-              console.error('Erreur lors de la mise à jour:', error);
-          }
-      }
-
-      // Mise à jour des KPIs
-      function updateKPIs(data) {
-          document.getElementById('kpiScore').textContent = data.score?.score || '--';
-          document.getElementById('kpiAir').textContent = data.air?.aqi || '--';
-          document.getElementById('kpiTemp').textContent = data.weather?.current?.temp ? `${data.weather.current.temp}°C` : '--';
-          document.getElementById('kpiEvents').textContent = data.events?.events?.length || '--';
-      }
-
-      // Mise à jour de la section météo
-      function updateWeatherSection(weather) {
-          if (!weather?.current) return;
-          
-          const current = weather.current;
-          document.getElementById('currentTemp').textContent = `${current.temp}°C`;
-          document.getElementById('feelsLike').textContent = `${current.feels_like}°C`;
-          document.getElementById('humidity').textContent = `${current.humidity}%`;
-          document.getElementById('wind').textContent = `${current.wind_speed} km/h`;
-          document.getElementById('pressure').textContent = `${current.pressure} hPa`;
-          document.getElementById('visibility').textContent = `${current.visibility} km`;
-          document.getElementById('weatherDescription').textContent = current.description;
-          
-          // Icône météo
-          const weatherIcons = {
-              '01d': '☀️', '01n': '🌙', '02d': '⛅', '02n': '☁️',
-              '03d': '☁️', '03n': '☁️', '04d': '☁️', '04n': '☁️',
-              '09d': '🌧️', '09n': '🌧️', '10d': '🌦️', '10n': '🌧️',
-              '11d': '⛈️', '11n': '⛈️', '13d': '🌨️', '13n': '🌨️',
-              '50d': '🌫️', '50n': '🌫️'
-          };
-          document.getElementById('weatherIcon').textContent = weatherIcons[current.icon] || '⛅';
-      }
-
-      // Mise à jour de la section qualité de l'air
-      function updateAirQualitySection(air) {
-          if (!air) return;
-          
-          document.getElementById('aqiValue').textContent = air.aqi;
-          document.getElementById('aqiStatus').textContent = air.label || 'Chargement...';
-          document.getElementById('pm25').textContent = `${air.pm25} µg/m³`;
-          document.getElementById('no2').textContent = `${air.no2} µg/m³`;
-          document.getElementById('o3').textContent = `${air.o3} µg/m³`;
-          
-          // Mise à jour du cercle de progression AQI
-          const airCircle = document.getElementById('airCircle');
-          const circumference = 502.6;
-          const offset = circumference - (air.aqi / 500) * circumference;
-          airCircle.style.strokeDashoffset = offset;
-          
-          // Mise à jour des conseils
-          const adviceElement = document.getElementById('airAdvice');
-          const colorClasses = {
-              'green': 'from-green-50 to-emerald-50 border-green-200',
-              'yellow': 'from-yellow-50 to-amber-50 border-yellow-200',
-              'orange': 'from-orange-50 to-red-50 border-orange-200',
-              'red': 'from-red-50 to-pink-50 border-red-200'
-          };
-          
-          const iconClasses = {
-              'green': 'fas fa-check text-green-600',
-              'yellow': 'fas fa-exclamation-triangle text-yellow-600',
-              'orange': 'fas fa-exclamation text-orange-600',
-              'red': 'fas fa-times text-red-600'
-          };
-          
-          const textClasses = {
-              'green': 'text-green-800',
-              'yellow': 'text-yellow-800',
-              'orange': 'text-orange-800',
-              'red': 'text-red-800'
-          };
-          
-          const bgClasses = {
-              'green': 'bg-green-100',
-              'yellow': 'bg-yellow-100',
-              'orange': 'bg-orange-100',
-              'red': 'bg-red-100'
-          };
-          
-          adviceElement.className = `p-8 bg-gradient-to-br ${colorClasses[air.color] || 'from-gray-50 to-gray-100 border-gray-200'} border-2 rounded-3xl`;
-          adviceElement.innerHTML = `
-              <div class="flex items-start space-x-4">
-                  <div class="w-12 h-12 ${bgClasses[air.color] || 'bg-gray-100'} rounded-2xl flex items-center justify-center flex-shrink-0">
-                      <i class="${iconClasses[air.color] || 'fas fa-info text-gray-600'} text-xl"></i>
-                  </div>
-                  <div>
-                      <div class="font-bold ${textClasses[air.color] || 'text-gray-800'} mb-2 text-lg">${air.label}</div>
-                      <div class="${textClasses[air.color] || 'text-gray-700'}">${air.advice}</div>
-                  </div>
-              </div>
-          `;
-      }
-
-      // Mise à jour de la section score
-      function updateScoreSection(score) {
-          if (!score) return;
-          
-          document.getElementById('urbanScore').textContent = score.score;
-          document.getElementById('urbanScoreLabel').textContent = score.label;
-          
-          // Mise à jour du cercle de progression
-          const progressCircle = document.getElementById('progressCircle');
-          const circumference = 282.7;
-          const offset = circumference - (score.score / 100) * circumference;
-          progressCircle.style.strokeDashoffset = offset;
-          
-          // Mise à jour du statut
-          const statusElement = document.getElementById('scoreStatus');
-          const statusClasses = {
-              'Excellent': 'bg-green-50 border-green-200',
-              'Bon': 'bg-blue-50 border-blue-200',
-              'Moyen': 'bg-yellow-50 border-yellow-200',
-              'Mauvais': 'bg-red-50 border-red-200'
-          };
-          
-          const textClasses = {
-              'Excellent': 'text-green-800',
-              'Bon': 'text-blue-800',
-              'Moyen': 'text-yellow-800',
-              'Mauvais': 'text-red-800'
-          };
-          
-          statusElement.className = `text-center p-6 ${statusClasses[score.label] || 'bg-gray-50 border-gray-200'} border-2 rounded-2xl backdrop-blur-lg`;
-          statusElement.innerHTML = `
-              <div class="${textClasses[score.label] || 'text-gray-800'} font-bold text-lg">${score.label}</div>
-              <div class="${textClasses[score.label] || 'text-gray-600'} text-base mt-2">Score urbain: ${score.score}/100</div>
-          `;
-      }
-
-      // Mise à jour de la section événements
-      function updateEventsSection(events) {
-          const eventsList = document.getElementById('eventsList');
-          
-          if (!events?.events || events.events.length === 0) {
-              eventsList.innerHTML = `
-                  <div class="text-center py-8 text-gray-500">
-                      <i class="fas fa-calendar-times text-4xl mb-4 text-gray-300"></i>
-                      <p>Aucun événement trouvé</p>
-                  </div>
-              `;
-              return;
-          }
-          
-          const eventsHTML = events.events.slice(0, 4).map(event => {
-              const date = new Date(event.date);
-              const formattedDate = date.toLocaleDateString('fr-FR', { 
-                  day: 'numeric', 
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit'
-              });
-              
-              const categoryIcons = {
-                  'culture': 'fas fa-theater-masks',
-                  'sport': 'fas fa-futbol',
-                  'marché': 'fas fa-shopping-basket',
-                  'concert': 'fas fa-music',
-                  'exposition': 'fas fa-palette'
-              };
-              
-              return `
-                  <div class="event-card p-6 rounded-2xl">
-                      <div class="flex items-start space-x-4">
-                          <div class="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-                              <i class="${categoryIcons[event.category] || 'fas fa-calendar'} text-indigo-600"></i>
-                          </div>
-                          <div class="flex-1">
-                              <h4 class="font-bold text-gray-800 mb-2">${event.name}</h4>
-                              <div class="space-y-1 text-sm text-gray-600">
-                                  <div class="flex items-center">
-                                      <i class="fas fa-clock mr-2 text-gray-400"></i>
-                                      <span>${formattedDate}</span>
-                                  </div>
-                                  <div class="flex items-center">
-                                      <i class="fas fa-map-marker-alt mr-2 text-gray-400"></i>
-                                      <span>${event.location}</span>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              `;
-          }).join('');
-          
-          eventsList.innerHTML = eventsHTML;
-      }
-
-      // Mise à jour de la section prédictions
-      function updatePredictionSection(prediction) {
-          if (!prediction) return;
-          
-          document.getElementById('prediction').textContent = prediction.predicted_aqi_6h || '--';
-          document.getElementById('confidence').textContent = `${prediction.confidence || '--'}%`;
-          
-          // Mise à jour de la tendance
-          const trendElement = document.getElementById('predictionTrend');
-          const currentAqi = parseInt(document.getElementById('aqiValue').textContent) || 0;
-          const predictedAqi = prediction.predicted_aqi_6h || 0;
-          
-          if (predictedAqi < currentAqi) {
-              trendElement.innerHTML = `
-                  <i class="fas fa-arrow-down text-green-600 mr-2"></i>
-                  <span class="font-bold text-green-700">Amélioration</span>
-              `;
-              trendElement.className = 'flex items-center text-sm text-green-600 bg-green-50 px-4 py-2 rounded-2xl border border-green-200';
-          } else if (predictedAqi > currentAqi) {
-              trendElement.innerHTML = `
-                  <i class="fas fa-arrow-up text-red-600 mr-2"></i>
-                  <span class="font-bold text-red-700">Dégradation</span>
-              `;
-              trendElement.className = 'flex items-center text-sm text-red-600 bg-red-50 px-4 py-2 rounded-2xl border border-red-200';
-          } else {
-              trendElement.innerHTML = `
-                  <i class="fas fa-minus text-blue-600 mr-2"></i>
-                  <span class="font-bold text-blue-700">Stable</span>
-              `;
-              trendElement.className = 'flex items-center text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-2xl border border-blue-200';
-          }
-          
-          // Mise à jour de la grille de prédiction
-          if (prediction.forecast && prediction.forecast.length >= 3) {
-              const gridItems = document.querySelectorAll('#predictionGrid > div');
-              [1, 3, 5].forEach((index, i) => {
-                  if (prediction.forecast[index] && gridItems[i]) {
-                      const aqiValue = gridItems[i].querySelector('.data-point');
-                      if (aqiValue) {
-                          aqiValue.textContent = prediction.forecast[index].aqi;
-                      }
-                  }
-              });
-          }
-          
-          // Mise à jour de la recommandation IA
-          const recommendationElement = document.getElementById('aiRecommendation');
-          let recommendationText = "Analyse en cours des conditions urbaines...";
-          let recommendationClass = "from-gray-50 to-gray-100 border-gray-200";
-          let iconClass = "fas fa-lightbulb text-gray-600";
-          let titleClass = "text-gray-800";
-          let textClass = "text-gray-700";
-          
-          if (predictedAqi <= 50) {
-              recommendationText = "Conditions excellentes prévues. Parfait pour toutes les activités outdoor.";
-              recommendationClass = "from-green-50 to-emerald-50 border-green-200";
-              iconClass = "fas fa-check text-green-600";
-              titleClass = "text-green-800";
-              textClass = "text-green-700";
-          } else if (predictedAqi <= 100) {
-              recommendationText = "Qualité d'air modérée attendue. Activités outdoor recommandées avec modération.";
-              recommendationClass = "from-blue-50 to-cyan-50 border-blue-200";
-              iconClass = "fas fa-info text-blue-600";
-              titleClass = "text-blue-800";
-              textClass = "text-blue-700";
-          } else {
-              recommendationText = "Dégradation de la qualité d'air prévue. Limitez les activités outdoor intensives.";
-              recommendationClass = "from-orange-50 to-red-50 border-orange-200";
-              iconClass = "fas fa-exclamation-triangle text-orange-600";
-              titleClass = "text-orange-800";
-              textClass = "text-orange-700";
-          }
-          
-          recommendationElement.className = `p-8 bg-gradient-to-br ${recommendationClass} border-2 rounded-3xl`;
-          recommendationElement.innerHTML = `
-              <div class="flex items-start space-x-4">
-                  <div class="w-12 h-12 ${iconClass.includes('green') ? 'bg-green-100' : iconClass.includes('blue') ? 'bg-blue-100' : iconClass.includes('orange') ? 'bg-orange-100' : 'bg-gray-100'} rounded-2xl flex items-center justify-center flex-shrink-0">
-                      <i class="${iconClass} text-xl"></i>
-                  </div>
-                  <div>
-                      <div class="font-bold ${titleClass} mb-2 text-lg">Recommandation IA</div>
-                      <div class="${textClass}">${recommendationText}</div>
-                  </div>
-              </div>
-          `;
-      }
-
-      // Mise à jour des graphiques
-      function updateCharts(data) {
-          updateWeatherChart(data.weather);
-          updatePredictionChart(data.prediction);
-      }
-
-      // Graphique météo
-      function updateWeatherChart(weather) {
-          const ctx = document.getElementById('weatherChart').getContext('2d');
-          
-          if (weatherChart) {
-              weatherChart.destroy();
-          }
-          
-          if (!weather?.forecast_24h) return;
-          
-          const labels = weather.forecast_24h.map(item => {
-              const date = new Date(item.time);
-              return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-          });
-          
-          const temperatures = weather.forecast_24h.map(item => item.temp);
-          const humidity = weather.forecast_24h.map(item => item.humidity);
-          
-          weatherChart = new Chart(ctx, {
-              type: 'line',
-              data: {
-                  labels: labels,
-                  datasets: [{
-                      label: 'Température (°C)',
-                      data: temperatures,
-                      borderColor: '#f59e0b',
-                      backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                      tension: 0.4,
-                      yAxisID: 'y'
-                  }, {
-                      label: 'Humidité (%)',
-                      data: humidity,
-                      borderColor: '#3b82f6',
-                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                      tension: 0.4,
-                      yAxisID: 'y1'
-                  }]
-              },
-              options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                      legend: {
-                          position: 'top',
-                      }
-                  },
-                  scales: {
-                      y: {
-                          type: 'linear',
-                          display: true,
-                          position: 'left',
-                          title: {
-                              display: true,
-                              text: 'Température (°C)'
-                          }
-                      },
-                      y1: {
-                          type: 'linear',
-                          display: true,
-                          position: 'right',
-                          title: {
-                              display: true,
-                              text: 'Humidité (%)'
-                          },
-                          grid: {
-                              drawOnChartArea: false,
-                          },
-                      }
-                  }
-              }
-          });
-      }
-
-      // Graphique prédiction
-      function updatePredictionChart(prediction) {
-          const ctx = document.getElementById('predictionChart').getContext('2d');
-          
-          if (predictionChart) {
-              predictionChart.destroy();
-          }
-          
-          if (!prediction?.forecast) return;
-          
-          const labels = prediction.forecast.map(item => item.hour);
-          const values = prediction.forecast.map(item => item.aqi);
-          
-          predictionChart = new Chart(ctx, {
-              type: 'line',
-              data: {
-                  labels: labels,
-                  datasets: [{
-                      label: 'AQI Prédit',
-                      data: values,
-                      borderColor: '#6366f1',
-                      backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                      tension: 0.4,
-                      fill: true
-                  }]
-              },
-              options: {
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                      legend: {
-                          display: false
-                      }
-                  },
-                  scales: {
-                      y: {
-                          beginAtZero: true,
-                          title: {
-                              display: true,
-                              text: 'AQI'
-                          }
-                      }
-                  }
-              }
-          });
-      }
-
-      // Fonction pour mettre à jour l'heure
-      function updateTime() {
-          const now = new Date();
-          const timeString = now.toLocaleTimeString('fr-FR', { 
-              hour: '2-digit', 
-              minute: '2-digit'
-          });
-          document.getElementById('currentTime').textContent = timeString;
-      }
-
-      // Modal du score
-      function setupModal() {
-          const modal = document.getElementById('scoreModal');
-          const scoreInfoBtn = document.getElementById('scoreInfo');
-          const closeModalBtn = document.getElementById('closeModal');
-          
-          scoreInfoBtn.addEventListener('click', () => {
-              modal.classList.remove('hidden');
-              modal.classList.add('flex');
-              setTimeout(() => {
-                  modal.querySelector('.modal-content').classList.remove('scale-95');
-                  modal.querySelector('.modal-content').classList.add('scale-100');
-              }, 10);
-              
-              // Mise à jour des données du modal
-              updateModalData();
-          });
-          
-          closeModalBtn.addEventListener('click', closeModal);
-          modal.addEventListener('click', (e) => {
-              if (e.target === modal) closeModal();
-          });
-          
-          function closeModal() {
-              modal.querySelector('.modal-content').classList.remove('scale-100');
-              modal.querySelector('.modal-content').classList.add('scale-95');
-              setTimeout(() => {
-                  modal.classList.remove('flex');
-                  modal.classList.add('hidden');
-              }, 300);
-          }
-      }
-
-      // Mise à jour des données du modal
-      function updateModalData() {
-          // Récupérer les données actuelles du score
-          const currentScore = document.getElementById('urbanScore').textContent;
-          
-          // Simuler les données de breakdown (vous pouvez les récupérer depuis l'API)
-          const breakdown = {
-              weather: 85,
-              air_quality: 72,
-              events: 76
-          };
-          
-          document.getElementById('modalWeatherScore').textContent = breakdown.weather;
-          document.getElementById('modalAirScore').textContent = breakdown.air_quality;
-          document.getElementById('modalEventsScore').textContent = breakdown.events;
-          
-          // Animer les barres de progression
-          setTimeout(() => {
-              document.getElementById('modalWeatherBar').style.width = `${breakdown.weather}%`;
-              document.getElementById('modalAirBar').style.width = `${breakdown.air_quality}%`;
-              document.getElementById('modalEventsBar').style.width = `${breakdown.events}%`;
-          }, 500);
-      }
-
-      // Initialisation de l'application
-      document.addEventListener('DOMContentLoaded', function() {
-          // Mise à jour de l'heure
-          updateTime();
-          setInterval(updateTime, 60000);
-          
-          // Configuration du modal
-          setupModal();
-          
-          // Gestionnaire de changement de ville
-          document.getElementById('citySelect').addEventListener('change', function() {
-              const selectedCity = this.value;
-              updateDashboard(selectedCity);
-          });
-          
-          // Chargement initial avec Paris
-          updateDashboard('paris');
-          
-          // Actualisation automatique toutes les 5 minutes
-          setInterval(() => {
-              const selectedCity = document.getElementById('citySelect').value;
-              updateDashboard(selectedCity);
-          }, 300000);
-      });
-  </script>
+  <!-- JavaScript sera chargé depuis le fichier externe -->
+  <script src="/static/js/main.js"></script>
 </body>
-</html> 
+</html>
